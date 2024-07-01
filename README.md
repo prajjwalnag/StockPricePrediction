@@ -9,6 +9,9 @@ This project demonstrates how to predict buy signals in stock trading using a Lo
 - [Installation](#installation)
 - [Usage](#usage)
 - [Data Preparation](#data-preparation)
+- [Data Fetching](#data-fetching)
+- [Data Transformation using pandas_ta](#data-transformation-using-pandas_ta)
+- [Why Use LSTM for Stock Prediction](#why-use-lstm-for-stock-prediction)
 - [Model Training](#model-training)
 - [Prediction](#prediction)
 - [Contributing](#contributing)
@@ -25,7 +28,7 @@ To get started, clone this repository and install the necessary dependencies.
 ```bash
 git clone https://github.com/your-username/stock-buy-signal-prediction.git
 cd stock-buy-signal-prediction
-pip install numpy pandas tensorflow
+pip install numpy pandas tensorflow pandas_ta requests
 ```
 
 ## Usage
@@ -68,6 +71,73 @@ time_step = 60
 X, Y = create_dataset(scaled_prices, time_step)
 X = X.reshape(X.shape[0], X.shape[1], 1)  # LSTM expects input shape: (samples, time steps, features)
 ```
+
+## Data Fetching
+
+To fetch historical stock price data, we use the Alpha Vantage API. Alpha Vantage provides free APIs for real-time and historical market data of various assets, including stocks, forex, and cryptocurrencies.
+
+### Getting Started with Alpha Vantage
+
+1. **Sign Up**: Create a free account on [Alpha Vantage](https://www.alphavantage.co/).
+2. **API Key**: After signing up, you will receive an API key to access the data.
+3. **Fetch Data**: Use the API key to fetch historical stock data. Below is an example code to fetch data using Alpha Vantage API:
+
+```python
+import requests
+import pandas as pd
+
+api_key = 'YOUR_API_KEY'
+symbol = 'IBM'
+url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&outputsize=full&apikey={api_key}'
+
+response = requests.get(url)
+data = response.json()
+
+# Convert the JSON data to a pandas DataFrame
+df = pd.DataFrame(data['Time Series (Daily)']).T
+df = df.rename(columns={
+    '1. open': 'open',
+    '2. high': 'high',
+    '3. low': 'low',
+    '4. close': 'close',
+    '5. adjusted close': 'adjusted_close',
+    '6. volume': 'volume',
+    '7. dividend amount': 'dividend_amount',
+    '8. split coefficient': 'split_coefficient'
+})
+df.index = pd.to_datetime(df.index)
+df = df.astype(float)
+print(df.head())
+```
+
+## Data Transformation using pandas_ta
+
+After fetching the historical stock data, we use the `pandas_ta` library for technical analysis and data transformation. Specifically, we calculate the Simple Moving Averages (SMA) for 20, 50, and 200 days.
+
+### Example Code for SMA Calculation
+
+```python
+import pandas_ta as ta
+
+# Calculate SMA
+df['SMA_20'] = ta.sma(df['close'], length=20)
+df['SMA_50'] = ta.sma(df['close'], length=50)
+df['SMA_200'] = ta.sma(df['close'], length=200)
+
+print(df[['close', 'SMA_20', 'SMA_50', 'SMA_200']].tail())
+```
+
+## Why Use LSTM for Stock Prediction
+
+Long Short-Term Memory (LSTM) networks are a type of recurrent neural network (RNN) capable of learning long-term dependencies. They are well-suited for time series data because they can remember past information for long periods. This makes LSTM an excellent choice for stock price prediction, where historical price data can influence future prices.
+
+### Advantages of LSTM for Stock Prediction
+
+1. **Memory**: LSTMs can remember previous inputs, which helps in understanding the temporal dependencies in stock prices.
+2. **Handling Sequence Data**: LSTM is designed to handle sequence data, making it ideal for time series prediction.
+3. **Avoiding the Vanishing Gradient Problem**: LSTM networks use mechanisms like forget gates to prevent issues like the vanishing gradient problem, which can occur in traditional RNNs.
+
+By leveraging LSTM networks, we aim to capture the intricate patterns and trends in stock prices to predict buy signals accurately.
 
 ## Model Training
 
